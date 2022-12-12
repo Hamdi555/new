@@ -1,4 +1,6 @@
+from pydoc import describe
 import sys
+
 from django.utils.timezone import now
 try:
     from django.db import models
@@ -8,7 +10,7 @@ except Exception:
 
 from django.conf import settings
 import uuid
-
+import datetime
 
 # Instructor model
 class Instructor(models.Model):
@@ -56,17 +58,23 @@ class Learner(models.Model):
 class Course(models.Model):
     name = models.CharField(null=False, max_length=30, default='online course')
     image = models.ImageField(upload_to='course_images/')
-    description = models.CharField(max_length=1000)
+    description = models.TextField()
     pub_date = models.DateField(null=True)
     instructors = models.ManyToManyField(Instructor)
-    users = models.ManyToManyField(settings.AUTH_USER_MODEL, through='Enrollment')
+    users = models.ManyToManyField(settings.AUTH_USER_MODEL, through='Enrollment', )
     total_enrollment = models.IntegerField(default=0)
     is_enrolled = False
 
     def __str__(self):
         return "Name: " + self.name + "," + \
                "Description: " + self.description
-
+    @classmethod
+    def get_default_pk(cls):
+        exam, created = cls.objects.get_or_create(
+            title='default exam', 
+            defaults=dict(description='this is not an exam'),
+        )
+        return exam.pk
 
 # Lesson model
 class Lesson(models.Model):
@@ -101,22 +109,23 @@ class Enrollment(models.Model):
     # Has a grade point for each question
     # Has question content
     # Other fields and methods you would like to design
+    
 class Question(models.Model):
     # Foreign key to lesson
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
     # question text
+    question_text = models.TextField()
+    
     # question grade/mark
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
-    text = models.TextField()
-    grade = models.FloatField()
-
+    grade = models.IntegerField(default=0)
     # <HINT> A sample model method to calculate if learner get the score of the question
     def is_get_score(self, selected_ids):
-        all_answers = self.choice_set.filter(is_correct=True).count()
-        selected_correct = self.choice_set.filter(is_correct=True, id__in=selected_ids).count()
-        if all_answers == selected_correct:
-            return True
-        else:
-            return False
+       all_answers = self.choice_set.filter(is_correct=True).count()
+       selected_correct = self.choice_set.filter(is_correct=True, id__in=selected_ids).count()
+       if all_answers == selected_correct:
+           return True
+       else:
+           return False
 
 
 #  <HINT> Create a Choice Model with:
@@ -127,14 +136,14 @@ class Question(models.Model):
     # Other fields and methods you would like to design
 class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    text = models.TextField()
-    is_correct = models.BooleanField()
-
+    choice_text = models.TextField()
+    is_correct = models.BooleanField(default=False)
+    
 # <HINT> The submission model
 # One enrollment could have multiple submission
 # One submission could have multiple choices
 # One choice could belong to multiple submissions
 class Submission(models.Model):
-    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
-    choices = models.ManyToManyField(Choice)
-#    Other fields and methods you would like to design
+   enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
+   choices = models.ManyToManyField(Choice)
+#    Other fields and methods you would like to desig
